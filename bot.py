@@ -5,7 +5,7 @@ from discord.ext import commands
 from dotenv import load_dotenv
 import asyncio
 
-#loads values that are needed and values which should be kept private
+#loads values that are needed and values  which should be kept private
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 BEDWARS = os.getenv("DISCORD_BEDWARS")
