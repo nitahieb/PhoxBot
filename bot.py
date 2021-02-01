@@ -14,7 +14,7 @@ AUTHORIZATION = os.getenv("TWITCH_AUTHORIZATION")
 CLIENTID = os.getenv("TWITCH_CLIENT")
 USERID = os.getenv("USER_ID")
 NOTIF_ROLE = os.getenv("NOTIF_ROLE")
-NOTIF_CHANNEL = os.getenc("NOTIF_CHANNEL")
+NOTIF_CHANNEL = os.getenv("NOTIF_CHANNEL")
 
 intents = discord.Intents.default()
 intents.members = True
@@ -67,6 +67,11 @@ def automeme(string):
             string = string[:int] + temp.lower() + string[int+1:]
     return string
 
+def islive():
+    response = requests.get(url, headers=headers,params=params)
+    if(not (response.text[8:10]=="[]")):
+        return True
+
 
 #gets last message on channel and sends it back after running through automeme
 @client.command()
@@ -91,6 +96,13 @@ async def bedwars(ctx):
 async def birfday(ctx):
     await ctx.send(f"Hey {BIRTHDAY} we at the phoxbot company wish you a happy birthday \n https://www.youtube.com/watch?v=ho08YLYDM88")
 
+@client.command()
+async def livecheck(ctx):
+    if(islive()):
+        await ctx.send("Channel is live")
+    else: 
+        await ctx.send("Channel is not live")
+
 
 #Background task which checks if specified twitch channel is live, if it is check if it has been announced,
 #  if it hasn't been announce it and set announce to True, if it has been announced check back in 60 seconds
@@ -98,10 +110,9 @@ async def birfday(ctx):
 async def channel_check():
     announce = False
     while True:
-        response = requests.get(url, headers=headers,params=params)
-        if(not (response.text[8:10]=="[]")):
+        if islive():
             if announce == False:
-                channel = client.get_channel(NOTIF_CHANNEL)
+                channel = client.get_channel(int(NOTIF_CHANNEL))
                 await channel.send(f"{NOTIF_ROLE} KrypticPhox is live https://www.twitch.tv/krypticphox ")
                 announce = True
         else: announce = False
