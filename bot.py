@@ -4,20 +4,21 @@ import requests
 from discord.ext import commands
 from dotenv import load_dotenv
 import asyncio
+import openai
 
 #loads values that are needed and values  which should be kept private
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
-BEDWARS = os.getenv("DISCORD_BEDWARS")
-BIRTHDAY = os.getenv("DISCORD_BIRTHDAY")
 AUTHORIZATION = os.getenv("TWITCH_AUTHORIZATION")
 CLIENTID = os.getenv("TWITCH_CLIENT")
 USERID = os.getenv("USER_ID")
 NOTIF_ROLE = os.getenv("NOTIF_ROLE")
 NOTIF_CHANNEL = os.getenv("NOTIF_CHANNEL")
+OPEN_AI_KEY = os.getenv("OPENAI_API_KEY")
 
 intents = discord.Intents.default()
 intents.members = True
+intents.message_content=True
 
 #specifies to run a bot command with .
 client =  commands.Bot(command_prefix='.', intents=intents)
@@ -32,7 +33,6 @@ params = {
     "user_id": USERID
 }
 
-
 # runs when bot first starts, lists all servers it connected to
 @client.event
 async def on_ready():
@@ -42,15 +42,6 @@ async def on_ready():
         f'{guild}(id: {guild.id})')
     #starts background task that runs to periodically check if a specified twitch channel is live
     client.bg_task = client.loop.create_task(channel_check())
-    
-#Sends message to server and privately messages someone when they join server
-#@client.event
-#async def on_member_join(member):
-    #guild = member.guild
-    #await member.send('Pssst you should check out this streamer https://www.twitch.tv/krypticphox')
-    #if guild.system_channel is not None:
-        #to_send = "Hey {0.mention}, you should check out this cool streamer https://www.twitch.tv/krypticphox".format(member)
-        #await guild.system_channel.send(to_send)
 
 #responds with the person who wrote the commands latency
 @client.command()
@@ -72,13 +63,35 @@ def islive():
     if(not (response.text[8:10]=="[]")):
         return True
 
+def gpthelper(key,message):
+    openai.api_key = key
+    MAX_TOKENS = 4000
+    text_input = message
+    remaining = MAX_TOKENS - len(text_input)
+    if remaining < 0:
+        return "Prompt too long"
 
-#gets last message on channel and sends it back after running through automeme
+    try:
+        response = openai.Completion.create(
+        model="text-davinci-002",
+        prompt=text_input,
+        temperature=0.5,
+        max_tokens=remaining,
+        top_p=1,
+        frequency_penalty=0,
+        presence_penalty=0
+        )
+    except openai.error.RateLimitError:
+        return "sending requests too quickly"
+    else:
+        #print(f"Response will be max {remaining} character length")
+        return response["choices"][0]["text"]
+
 @client.command()
-async def meme(ctx):
+async def gpt(ctx):
     channel = ctx.channel
-    messages = await channel.history(limit=2).flatten()
-    await ctx.send(f"{automeme(messages[1].content)}")
+    messages = ctx.message.content.split(".gpt")[1]
+    await ctx.send(f"{gpthelper(OPEN_AI_KEY,messages)}")
 
 
 #sends link to twitch channel
@@ -86,15 +99,6 @@ async def meme(ctx):
 async def link(ctx):
     await ctx.send(f"https://www.twitch.tv/krypticphox")
 
-#pings all members listed in BEDWARS
-@client.command()
-async def bedwars(ctx):
-    await ctx.send(f"BEDWARS NOW {BEDWARS}")
-
-#Sends birthday message to whoever is referenced in BIRTHDAY
-@client.command()
-async def birfday(ctx):
-    await ctx.send(f"Hey {BIRTHDAY} we at the phoxbot company wish you a happy birthday \n https://www.youtube.com/watch?v=ho08YLYDM88")
 
 @client.command()
 async def livecheck(ctx):
@@ -118,8 +122,8 @@ async def channel_check():
         else: announce = False
         await asyncio.sleep(60)
 
-
 #runs bot
+
 client.run(TOKEN)
 
 
